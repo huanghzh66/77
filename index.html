@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height" />
+		<script src="static/js/jquery-1.8.3.min.js"></script>	
+		<link href="static/css/amap.css" rel="stylesheet" type="text/css" />
+		<title>Gps</title>
+	</head>
+
+	<body onload="init()">
+		<input type="button" value="当前位置" id="GetCurrentPosition" />
+		<input type="button" value="获取位置" id="WatchPosition" />
+		<input type="button" value="停止获取" id="ClearWatch" />
+		<input type="button" onclick="delAllData()" value="清空全部">
+		<input type="button" onclick="upload()" value="上传数据">
+		<input type="button" onclick="ReturnIndex()" value="手机轨迹浏览">
+		<!-- <input type="button" onclick="Returnhome()" value="返回首页"> -->
+		<input type="button" onclick="Returnpython()" value="电脑查看轨迹">
+		<p></p>
+		<table id="datatable"></table>
+		</br>
+	</body>
+
+</html>
+
+<script type="text/javascript">
+	//手机获取gps定位信息后添加到手机端sqlite并展示
+	var datatable = null;
+	var db = openDatabase('myGps', '1.0', 'gps db', 1024 * 100); //数据库名 版本 数据库描述 大小
+
+	function init() {
+		datatable = document.getElementById('datatable');
+		removeAllData();
+		showAllData();
+	}
+
+	function removeAllData() { //移除页面上展示的数据
+		for (var i = datatable.childNodes.length - 1; i >= 0; i--) {
+			datatable.removeChild(datatable.childNodes[i]);
+		}
+	}
+
+	function showAllData() { //显示sqlite中的数据，表gpsData不存在则创建
+		db.transaction(function(tx) {
+			tx.executeSql('create table if not exists gpsData(lng TEXT,lat TEXT,address TEXT)', [], function(tx, res) {});
+			tx.executeSql('select lng,lat,address from gpsData', [], function(tx, result) {
+				var lngX;
+				var latY;
+				var lineArr = new Array();
+				for (var i = 0; i < result.rows.length; i++) {
+					lngX = result.rows.item(i).lng;
+					latY = result.rows.item(i).lat;
+					xy = lngX + "|" + latY;
+					lineArr.push(xy);
+					showData(result.rows.item(i));
+				}
+			})
+		})
+	}
+
+	function delAllData() { //删除所有数据
+		db.transaction(function(tx) {
+			tx.executeSql('delete from gpsData', [], function(tx, res) {
+				removeAllData(); //移除页面上展示的数据
+			})
+		})
+	}
+
+	function showData(rowdata) { //页面显示数据	
+		var table = document.getElementById("datatable");
+		var row = table.insertRow(0);
+		var cell1 = row.insertCell(0);
+		var cell2 = row.insertCell(1);
+		var cell3 = row.insertCell(2);
+		cell1.innerHTML = rowdata.lng;
+		cell2.innerHTML = rowdata.lat;
+		cell3.innerHTML = rowdata.address;
+	}
+
+	function addData(lng, lat, address) { //添加数据
+		db.transaction(function(tx) {
+			tx.executeSql('insert into gpsData values(?,?,?)', [lng, lat, address], function(tx, rs) {
+				// console.log(address);
+			})
+		})
+	}
+
+	function ReturnIndex() {
+		location.href = 'gps.html';
+	}
+
+	function Returnhome() {
+		location.href = 'index.html';
+	}
+
+	function Returnpython() {
+		location.href = 'http://你的网站域名和ip/';
+	}
+	
+	function upload() { //上传数据
+		db.transaction(function(tx) {
+			tx.executeSql('select lng,lat,address from gpsData', [], function(tx, result) {
+				var lngX;
+				var latY;
+				var lineArr = new Array();
+				for (var i = 0; i < result.rows.length; i++) {
+					lngX = result.rows.item(i).lng;
+					latY = result.rows.item(i).lat;
+					xy = lngX + "|" + latY;
+					lineArr.push(xy);
+				}
+				lineArr = Array.from(new Set(lineArr)); //去重
+				$.ajax({
+					type: 'POST',
+					url: "http://你的网站域名和ip/gpsarr",
+					data: lineArr,
+					processData: false,
+					contentType: false,
+					success: function(lineArr) {
+						// console.log(lineArr);
+						alert('定位数据上传成功')
+					}
+				})
+			})
+		})
+	}
+
+	//手机获取gps定位信息
+	document.addEventListener('plusready', function() {
+
+		$('#GetCurrentPosition').on('touchstart', function() {
+			plus.geolocation.getCurrentPosition(function(postion) {
+				lng = postion.coords.longitude;
+				lat = postion.coords.latitude;
+				address = postion.addresses;
+				addData(lng, lat, address);
+				addData(118.320021, 36.823166, "到达地");
+				removeAllData();
+				showAllData();
+			})
+		})
+
+		var watchId = 0;
+		$('#WatchPosition').on('touchstart', function() {
+			watchId = plus.geolocation.watchPosition(function(postion) {
+				lng = postion.coords.longitude;
+				lat = postion.coords.latitude;
+				address = postion.addresses;
+				addData(lng, lat, address);
+				removeAllData();
+				showAllData();
+			})
+			maximumAge: 5000
+		})
+
+		$('#ClearWatch').on('touchstart', function() {
+			plus.geolocation.clearWatch(watchId);
+		})
+
+	})
+</script>

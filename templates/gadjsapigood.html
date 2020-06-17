@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<link rel="shortcut icon" href="#" />
+	<meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+	<script src="static/js/jquery-1.8.3.min.js"></script>
+	<script src="https://webapi.amap.com/maps?v=1.4.15&key=你申请的高德key"></script>
+	<link href="static/css/amap.css" rel="stylesheet" type="text/css" />
+	<script src="static/js/demoutils.js"></script>
+</head>
+
+<body onload="init()">
+	<div id="map_container"></div>
+</body>
+
+</html>
+
+<script type="text/javascript">
+	function runcar() {
+		var map = new AMap.Map('map_container', {
+			zoom: 14
+		});
+		map.on("complete", function () {
+			startRun();
+		})
+	}
+	function init() {
+		if (typeof (AMap) == "undefined") {
+			$.getScript("http://webapi.amap.com/maps?v=1.4.15&key=你申请的高德key&plugin=AMap.LineSearch").done(
+				function (script, textstatus) {
+					if (textstatus == "success" && typeof (AMap) != undefined) {
+						runcar();
+						// startRun();
+					} else {
+						alert("无法加载地图，请打开网络");
+					}
+				});
+		} else {
+			runcar();
+			// alert("地图加载成功");
+			// startRun();
+		}
+	}
+
+	function Returnhome() {
+		location.href = 'index.html';
+	}
+
+	function startRun() { //高德地图api调用画出行车轨迹
+
+		$.getJSON("/gpsarr", function (data) {
+
+			var pointList = eval(data);
+			var lng = pointList[0][0];
+			var lat = pointList[0][1];
+
+			map = new AMap.Map("map_container", {
+				resizeEnable: true,
+				center: [lng, lat],
+				zoom: 14
+			})
+
+			var marker = new AMap.Marker({
+				position: new AMap.LngLat(lng, lat),
+				title: "gps"
+			})
+			map.add(marker);
+
+			marker = new AMap.Marker({
+				map: map,
+				draggable: true,
+				position: new AMap.LngLat(lng, lat),
+				icon: "static/images/car.png",
+				offset: new AMap.Pixel(-26, -13),
+				autoRotation: true
+			})
+
+			var lineArr = new Array();
+			for (var i = 0; i < pointList.length; i++) {
+				var lngX = pointList[i][0];
+				var latX = pointList[i][1];
+				lineArr.push(new AMap.LngLat(lngX, latX));
+			}
+			var polyline = new AMap.Polyline({
+				map: map,
+				path: lineArr,
+				strokeColor: "#007a00",
+				strokeOpacity: 2,
+				strokeWeight: 4,
+				strokeStyle: "solid",
+			})
+			marker.moveAlong(lineArr, 120);
+		})
+	}
+
+	document.addEventListener('plusready', function () {
+		var webview = plus.webview.currentWebview();
+		plus.key.addEventListener('backbutton', function () {
+			webview.canBack(function (e) {
+				if (e.canBack) {
+					// alert("back")
+					webview.back();
+				} else {
+					alert("close")
+					webview.close();
+				}
+			})
+		})
+	})
+
+	// document.addEventListener('plusready', function() {
+    //     var webview = plus.webview.currentWebview();
+    //     plus.key.addEventListener('backbutton', function() {
+    //         webview.canBack(function(e) {
+    //             if(e.canBack) {
+    //                 webview.back();             
+    //             } else {
+    //                 //webview.close(); //hide,quit
+    //                 //plus.runtime.quit();
+    //                 //首页返回键处理
+    //                 //处理逻辑：1秒内，连续两次按返回键，则退出应用；
+    //                 var first = null;
+    //                 plus.key.addEventListener('backbutton', function() {
+    //                     //首次按键，提示‘再按一次退出应用’
+    //                     if (!first) {
+    //                         first = new Date().getTime();
+    //                         console.log('再按一次退出应用');
+    //                         setTimeout(function() {
+    //                             first = null;
+    //                         }, 1000);
+    //                     } else {
+    //                         if (new Date().getTime() - first < 1500) {
+    //                             // plus.runtime.quit();
+	// 							location.reload() ;
+    //                         }
+    //                     }
+    //                 }, false);
+    //             }
+    //         })
+    //     })
+    // })
+
+</script>
